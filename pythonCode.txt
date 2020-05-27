@@ -1,0 +1,158 @@
+N = 8
+
+
+#   returns correct name of MAC component
+def outPort(ROW, COL):
+    return f"OUT32_{ROW}_{COL}\t: out32 Port Map("
+
+
+#   returns correct name of output signal
+def outName(ROW, COL):
+    return f"out_{ROW}_{COL}"
+
+
+#   hi / low bit management -> returns high for evens, low for odds
+def downTo(index):
+    if index == 0:
+        return f"(31 downto 16)"
+    elif (index % 2) == 0:
+        return f"(31 downto 16)"
+    else:
+        return f"(15 downto 0)"
+
+#   returns formatted addition symbol for nonzero lines
+def addSymb(index):
+    if index > 0:
+        return "\t + "
+    else:
+        return "\t   "
+
+
+#   returns the correct register for A input
+def aREG(ROW, IDX):
+    return f"slv_reg{IDX + ROW * 8}"
+
+#   returns the correct register for B input
+def bREG(COL, IDX):
+    return f"slv_reg{128 + COL + IDX * 8}"
+
+#   prints all out32 instances
+def printComponents():
+    #   iterates through the output array
+    for ROW in range(N):
+        for COL in range(N):
+
+            outStr = f"{outPort(ROW, COL)}"
+            outStr += f"\t\tS_AXI_ACLK, LS_REST, LS_ENBL, LS_COUNT"
+            #outStr += "\t\t\t--\tControl Signals\t\t//\t\tA & B Inputs, Output:"
+            print(outStr)
+            outStr = ""
+            for IDX in range(N):
+                if IDX == 0:
+                    outStr += "\t"
+                elif (IDX % 8) == 0:
+                    outStr += f"\n\t"
+                outStr += f"{aREG(ROW, IDX)}{downTo(IDX)}, "
+            print(outStr)
+
+            outStr = ""
+            for IDX in range(N):
+                if IDX == 0:
+                    outStr += "\t"
+                elif (IDX % 8) == 0:
+                    outStr += f"\n\t"
+                outStr += f"{bREG(COL, IDX)}{downTo(COL)}, "
+
+            print(outStr)
+
+            # outStr = f"--\tC Output:\n\t{outName(ROW, COL)}"
+            outStr = f"\t{outName(ROW, COL)}"
+
+            print(f"{outStr}\t);\n")
+
+#   prints declaration statement for 32-bit signals
+def printSignals():
+    outStr = ""
+
+    for ROW in range(N):
+        print(f"")
+        if ROW == 0:
+            outStr = "\tsignal\t"
+        else:
+            outStr = "\t\t\t"
+
+        for COL in range(N):
+            if COL == 0:
+                outStr += ""
+            elif (COL % 8) == 0:
+                print(f"{outStr}")
+                outStr = "\t\t\t"
+
+            outStr += f"{outName(ROW, COL)},\t"
+        print(outStr)
+    print(f"\t: STD_LOGIC_VECTOR(31 downto 0);")
+
+#   prints out the slave register signal declaration
+def printSlvRegs():
+    printStr = ""
+    for a in range (256):
+        if (a % 8) == 0:
+            print(printStr)
+            printStr = "\t"
+
+        printStr += f"slv_reg{a+256}, "
+    print(printStr)
+
+#   prints the cop-out version
+def printCopOut():
+
+    for ROW in range(N):
+        for COL in range(N):
+            outStr = f"{outName(ROW, COL)} <= \t"
+
+            for IDX in range(N):
+                outStr += f"{addSymb(IDX)}{aREG(ROW, IDX)}(15 downto 0) * {bREG(COL, IDX)}(15 downto 0)"
+
+                if(IDX %2 == 1):
+                    if IDX == N-1:
+                        outStr += ";"
+                    print(outStr)
+                    outStr = "\t\t\t"
+            # print(outStr + ';')
+
+def getBinary(count):
+    outStr = str(bin(count))[2:]
+    while len(outStr) < 8:
+        outStr = '0' + outStr
+    outStr = 'b"1' + outStr + '"'
+    return outStr
+
+def printBinary():
+     for count in range (32):
+        getBinary(count)
+
+
+def outWhens():
+    count = 64
+    outStr = "\t"
+    for ROW in range(N*2):
+        for COL in range(N*2):
+            outStr += f"when {getBinary(count)}=>reg_data_out <= slv_reg{count+256};"
+
+            if (count % 2 != 0):
+                print(f"{outStr}")
+                outStr = "\t"
+            else:
+                outStr += "\t"
+
+            count += 1
+
+
+
+for row in range(N):
+    printStr = "\t{"
+    for col in range(N):
+        printStr+=f"{(row * 8) + col + 256}"
+        if col < N-1:
+            printStr+= ", "
+    print(printStr + "}")
